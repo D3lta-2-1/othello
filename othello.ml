@@ -22,7 +22,7 @@ let coup_direction i j d =
   |HD->(i-1),(j+1)
 
 
-let liste_directions = [H; HG; G; BG; B; BD; D; HD; H]
+let liste_directions = [H; HG; G; BG; B; BD; D; HD]
 
 let est_coup_possible etat i j = 
   let p,index = etat in
@@ -161,7 +161,7 @@ let rec minmax etat prof =
   end
 
 let strategie etat =
-  let init = List.map (fun coup -> (coup,minmax (jouer etat coup) 6)) (ensemble_coups_possibles etat) in
+  let init = List.map (fun coup -> (coup,minmax (jouer etat coup) 3)) (ensemble_coups_possibles etat) in
   let (coup,heuristique) = List. hd (List.fast_sort (fun x y -> if x = y then 0 else if x < y then -1 else 1) init) in
   coup
   
