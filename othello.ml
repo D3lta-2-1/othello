@@ -133,11 +133,11 @@ let rec minmax etat prof =
 
   if est_partie_termine etat then 
     if score etat > 0 then 
-      100                           (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)
+      10000                           (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)
     else if score etat < 0 then 
-      -100 
+      -10000 
     else
-      0  
+      0
   else if prof = 0 then 
     heuristique etat
   else begin
@@ -159,6 +159,11 @@ let rec minmax etat prof =
     done; !h_opt
   end
 
+let strategie etat =
+  let init = List.map (fun coup -> (coup,minmax (jouer etat coup))) (ensemble_coups_possibles etat) in
+  let (coup,heuristique) = List. hd (List.fast_sort (fun x y -> if x = y then 0 else if x < y then -1 else 1) init) in
+  coup
+
 let print_othellier etat = 
   let p,index = etat in
   for i = 0 to 7 do 
@@ -176,7 +181,6 @@ let print_bool b =
   else print_string "false"
 
 let print_list l = List.iter (fun (i,j)->print_int i ; print_string "," ; print_int j ; print_string " ; ") l
-
 
 let etat = init_plat
 (* let () = print_bool (est_coup_possible etat 3 3 ) *)
