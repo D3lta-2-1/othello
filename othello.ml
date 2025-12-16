@@ -30,7 +30,7 @@ let est_coup_possible etat i j =
   else begin 
   let b = ref false in
   let l = ref liste_directions in 
-  while !l != [] && not !b do 
+  while !l <> [] && not !b do 
     let d = List.hd !l in 
     l := List.tl !l ; 
     let i1,j1 = coup_direction i j d
@@ -74,7 +74,7 @@ let jouer (etat_base:othello) (i,j) =
   p.(i).(j)<- index ; 
   let l = ref liste_directions in
   let i1,j1 = ref i, ref j in
-  while !l != [] do 
+  while !l <> [] do 
     let d = List.hd !l in 
     l := List.tl !l;
     let liste_a_retourner = ref [] in
@@ -132,32 +132,52 @@ let rec minmax etat prof =
   let p,index = etat in
 
   if est_partie_termine etat then 
-    if score etat > 0 then 
+    (if score etat > 0 then 
       100                           (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)
     else if score etat < 0 then 
       -100 
     else
       0  
+    )
   else if prof = 0 then 
     heuristique etat
   else begin
     let l = ref (ensemble_coups_possibles etat) in
-    let coup_opt = ref (List.hd !l) in 
-    let h_opt = ref (heuristique (jouer etat !coup_opt)) in 
+    let coup0 = List.hd !l in 
+    let h_opt = ref (heuristique (jouer etat coup0)) in 
 
-    while !l != [] do 
+    while !l <> [] do 
       let coup = List.hd !l in 
       let nouvel_etat = jouer etat coup in 
       l := List.tl !l ; 
       let h = minmax nouvel_etat (prof - 1) in 
-      if index = 1 then (
-        if h > !h_opt then 
-          coup_opt := coup ; h_opt := h )
+      if index = 1 then 
+        (if h > !h_opt then 
+          h_opt := h )
       else
-        if h < !h_opt then 
-          coup_opt := coup ; h_opt := h 
+        (if h < !h_opt then 
+          h_opt := h )
     done; !h_opt
   end
+
+let strategie_minmax etat prof = 
+  let p,index = etat in 
+  let l = ref (ensemble_coups_possibles etat) in 
+  let coup_opt = ref (List.hd !l) in
+  let h_opt = ref (heuristique (jouer etat !coup_opt)) in 
+
+  while !l <> [] do 
+    let coup = List.hd !l in 
+    let nouvel_etat = jouer etat coup in 
+    l := List.tl !l ; 
+    let h = minmax nouvel_etat (prof - 1) in 
+    if index = 1 then 
+      (if h > !h_opt then 
+        (coup_opt := coup ; h_opt := h ))
+    else 
+      (if h < !h_opt then
+        (coup_opt := coup ; h_opt := h ))
+  done; !coup_opt  
 
 let print_othellier etat = 
   let p,index = etat in
@@ -177,19 +197,23 @@ let print_bool b =
 
 let print_list l = List.iter (fun (i,j)->print_int i ; print_string "," ; print_int j ; print_string " ; ") l
 
+let print_coup (i,j) = print_int i ; print_char ',' ; print_int j
+
 
 let etat = init_plat
+let etat1 = jouer etat (2,2)
 (* let () = print_bool (est_coup_possible etat 3 3 ) *)
 (* let () = print_othellier (jouer etat (2,2)) *)
 
-let etat2 = jouer (jouer etat (2,2)) (2,5)
-(* let () = print_othellier etat2 *)
+let etat2 = jouer etat1 (2,5)
+let () = print_othellier etat2
 
-let (p2,index2) = etat2 
 (* let () = print_bool (p2.(2).(5) = 2)  *)
 
-let etat3 = jouer etat2 (5,5)
-let () = print_othellier etat3
+(* let etat3 = jouer etat2 (5,5) *)
+(* let () = print_othellier etat3 *)
 (* let () = print_list (ensemble_coups_possibles etat3) *)
 
-let () = print_int (minmax etat3 1)
+(* let () = print_int (minmax etat2 1) ; print_char ';' 
+
+let () = print_coup (strategie_minmax etat2 1) *)
