@@ -208,12 +208,14 @@ let etat1 = jouer etat (2,2)
 let etat2 = jouer etat1 (2,5)
 let () = print_othellier etat2
 
-(* let () = print_bool (p2.(2).(5) = 2)  *)
-
-(* let etat3 = jouer etat2 (5,5) *)
-(* let () = print_othellier etat3 *)
-(* let () = print_list (ensemble_coups_possibles etat3) *)
+(* let () = print_bool (p2.(2).(5) = 2)  ?? *)
 
 (* let () = print_int (minmax etat2 1) ; print_char ';' 
 
 let () = print_coup (strategie_minmax etat2 1) *)
+
+
+
+(* let etat3 = jouer etat2 (5,5) *)
+(* let () = print_othellier etat3 *)
+(* let () = print_list (ensemble_coups_possibles etat3) *)
