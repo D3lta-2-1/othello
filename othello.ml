@@ -161,7 +161,7 @@ let rec minmax etat prof =
   end
 
 let strategie etat =
-  let init = List.map (fun coup -> (coup,minmax (jouer etat coup))) (ensemble_coups_possibles etat) in
+  let init = List.map (fun coup -> (coup,minmax (jouer etat coup) 6)) (ensemble_coups_possibles etat) in
   let (coup,heuristique) = List. hd (List.fast_sort (fun x y -> if x = y then 0 else if x < y then -1 else 1) init) in
   coup
   
@@ -224,3 +224,5 @@ let () = print_coup (strategie_minmax etat2 1) *)
 (* let etat3 = jouer etat2 (5,5) *)
 (* let () = print_othellier etat3 *)
 (* let () = print_list (ensemble_coups_possibles etat3) *)
+
+let () = print_coup (strategie etat2)
