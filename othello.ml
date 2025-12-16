@@ -165,7 +165,7 @@ let strategie etat =
   let (coup,heuristique) = List. hd (List.fast_sort (fun x y -> if x = y then 0 else if x < y then -1 else 1) init) in
   coup
   
-let strategie_minmax etat prof = 
+let strategie_minmax prof etat = 
   let p,index = etat in 
   let l = ref (ensemble_coups_possibles etat) in 
   let coup_opt = ref (List.hd !l) in

@@ -212,4 +212,4 @@ let strategie_aleatoire (plateau, j) =
   let coup_choisi = Random.int nb_coups in
   List.nth liste_coups coup_choisi
 
-let () = print_int (partie Othello.strategie Othello.strategie true)
+let () = print_int (partie strategie_aleatoire (Othello.strategie_minmax 4) true)
