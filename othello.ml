@@ -193,6 +193,3 @@ let () = print_othellier etat3
 (* let () = print_list (ensemble_coups_possibles etat3) *)
 
 let () = print_int (minmax etat3 1)
-
-
-(*test*)
