@@ -18,7 +18,7 @@ let copier_plateau plateau =
     copie;;
 
 (*Permet de savoir si un coup est valide*)
-(*let coup_est_possible (plateau, _) (x, y) =
+let coup_est_possible (plateau, _) (x, y) =
   plateau.(x).(y) = 0 (*Case vide*)
   &&
   (*Une case adjacente non vide*)
@@ -34,21 +34,19 @@ let copier_plateau plateau =
     ||
     (*haut*)
     (y < 7 && plateau.(x).(y+1) <> 0)
-  );;*)
-
-let coup_est_possible etat (i,j) = 
-  let p,index = etat in
-  if not (est_position_valide i j && p.(i).(j) = 0) then false
-  else begin 
-  let b = ref false in
-  let l = ref liste_directions in 
-  while !l <> [] && not !b do 
-    let d = List.hd !l in 
-    l := List.tl !l ; 
-    let i1,j1 = coup_direction i j d
-   in 
-    if est_position_valide i1 j1 && p.(i1).(j1) <> 0 then b := true
-  done; !b end
+    ||
+    (*gauche-bas*)
+    (x > 0 && y > 0 && plateau.(x-1).(y-1) <> 0)
+    ||
+    (*gauche-haut*)
+    (x > 0 && y < 7 && plateau.(x-1).(y+1) <> 0)
+    ||
+    (*droite-bas*)
+    (x < 7 && y > 0 && plateau.(x+1).(y-1) <> 0)
+    ||
+    (*droite-haut*)
+    (x < 7 && y < 7 && plateau.(x+1).(y+1) <> 0)
+  );;
 
 (*Renvoie le nombre de jetons du joueur 1 moins le nombre de jetons du joueur 2*)
 let scorer (plateau, _) =
@@ -212,4 +210,4 @@ let strategie_aleatoire (plateau, j) =
   let coup_choisi = Random.int nb_coups in
   List.nth liste_coups coup_choisi
 
-let () = print_int (partie strategie_aleatoire (Othello.strategie_minmax 4) true)
+let () = print_int (partie (Othello.strategie_minmax 3) strategie_aleatoire true)
