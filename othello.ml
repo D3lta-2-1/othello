@@ -152,11 +152,9 @@ let rec minmax etat prof =
       l := List.tl !l ; 
       let h = minmax nouvel_etat (prof - 1) in 
       if index = 1 then 
-        (if h > !h_opt then 
-          h_opt := h )
+        h_opt := max !h_opt h
       else
-        (if h < !h_opt then 
-          h_opt := h )
+        h_opt := min !h_opt h
     done; !h_opt
   end
 
@@ -165,7 +163,7 @@ let strategie etat =
   let (coup,heuristique) = List. hd (List.fast_sort (fun x y -> if x = y then 0 else if x < y then -1 else 1) init) in
   coup
   
-let strategie_minmax prof etat = 
+let strategie_minmax etat prof = 
   let p,index = etat in 
   let l = ref (ensemble_coups_possibles etat) in 
   let coup_opt = ref (List.hd !l) in
@@ -182,6 +180,67 @@ let strategie_minmax prof etat =
     else 
       (if h < !h_opt then
         (coup_opt := coup ; h_opt := h ))
+  done; !coup_opt  
+
+  
+let rec minmax_ab etat prof a b = 
+   let p,index = etat in
+
+  if est_partie_termine etat then 
+    (if score etat > 0 then 
+      10000                          (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)
+    else if score etat < 0 then 
+      -10000 
+    else
+      0  
+    )
+  else if prof = 0 then 
+    heuristique etat
+  else begin
+    let a_aux = ref a in
+    let b_aux = ref b in 
+    let l = ref (ensemble_coups_possibles etat) in
+    let coup0 = List.hd !l in 
+    let h_opt = ref (heuristique (jouer etat coup0)) in 
+
+    let doit_continuer = ref true in
+    while !doit_continuer && !l <> [] do 
+      let coup = List.hd !l in 
+      let nouvel_etat = jouer etat coup in 
+      l := List.tl !l ; 
+      let h = minmax_ab nouvel_etat (prof - 1) !a_aux !b_aux in 
+      if index = 1 then 
+       (if h > !b_aux then 
+          (doit_continuer := false ; h_opt := h)
+        else 
+          (h_opt := max !h_opt h ; a_aux := max !a_aux !h_opt))
+      else
+       (if h < !a_aux then 
+          (doit_continuer := false ; h_opt := h )  
+        else
+        (h_opt := min !h_opt h ; b_aux := min !b_aux !h_opt ))
+    done; !h_opt
+  end
+
+let strategie_minmax_ab etat prof =
+  let p,index = etat in 
+  let l = ref (ensemble_coups_possibles etat) in 
+  let coup_opt = ref (List.hd !l) in
+  let h_opt = ref (heuristique (jouer etat !coup_opt)) in 
+  let a_aux = ref (-10000) in 
+  let b_aux = ref 10000 in 
+
+  while !l <> [] do 
+    let coup = List.hd !l in 
+    let nouvel_etat = jouer etat coup in 
+    l := List.tl !l ; 
+    let h = minmax_ab nouvel_etat (prof - 1) !a_aux !b_aux in 
+    if index = 1 then 
+      (if h > !h_opt then 
+        (coup_opt := coup ; h_opt := h ; a_aux := max !a_aux h))
+    else 
+      (if h < !h_opt then
+        (coup_opt := coup ; h_opt := h ; a_aux := min !a_aux h))
   done; !coup_opt  
 
 let print_othellier etat = 
@@ -225,4 +284,10 @@ let () = print_coup (strategie_minmax etat2 1) *)
 (* let () = print_othellier etat3 *)
 (* let () = print_list (ensemble_coups_possibles etat3) *)
 
-let () = print_coup (strategie etat2)
+(* let () = print_coup (strategie etat2) *)
+
+(* let () = print_int (minmax etat2 1) ; print_string " ; " *)
+(* let () = print_int (minmax_ab etat2 9 (-10000) 10000) *)
+
+(* let () = print_coup (strategie_minmax (etat2) 3) *)
+(* let () = print_coup (strategie_minmax_ab (etat2) 7) *)
