@@ -90,15 +90,27 @@ let jouer (etat_base:othello) (i,j) =
   done; (p,autre_joueur index)
 
 (* a améliorer*)
+let base_score =
+  [|
+    [|5;5;5;5;5;5;5;5|];
+    [|5;4;4;4;4;4;4;5|];
+    [|5;4;3;3;3;3;4;5|];
+    [|5;4;3;2;2;3;4;5|];
+    [|5;4;3;2;2;3;4;5|];
+    [|5;4;3;3;3;3;4;5|];
+    [|5;4;4;4;4;4;4;5|];
+    [|5;5;5;5;5;5;5;5|]
+  |]
+
 let heuristique etat = 
   let p,index = etat in 
   let s = ref 0 in 
   for i = 0 to 7 do
     for j = 0 to 7 do
       if p.(i).(j) = 1 then 
-        s:= !s + 1 
+        s:= !s + 1 * base_score.(i).(j)
       else if p.(i).(j) = 2 then 
-        s:= !s - 1
+        s:= !s - 1 * base_score.(i).(j)
       else ()
     done;
   done;
@@ -133,9 +145,9 @@ let rec minmax etat prof =
 
   if est_partie_termine etat then 
     if score etat > 0 then 
-      10000                           (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)                          (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)
+      100000                           (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)                          (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)
     else if score etat < 0 then 
-      -10000 
+      -100000 
     else
       0
       
@@ -158,12 +170,12 @@ let rec minmax etat prof =
     done; !h_opt
   end
 
-let strategie etat =
+(* let strategie etat =
   let init = List.map (fun coup -> (coup,minmax (jouer etat coup) 3)) (ensemble_coups_possibles etat) in
   let (coup,heuristique) = List. hd (List.fast_sort (fun x y -> if x = y then 0 else if x < y then -1 else 1) init) in
-  coup
+  coup *)
   
-let strategie_minmax etat prof = 
+let strategie_minmax prof etat = 
   let p,index = etat in 
   let l = ref (ensemble_coups_possibles etat) in 
   let coup_opt = ref (List.hd !l) in
@@ -182,10 +194,69 @@ let strategie_minmax etat prof =
         (coup_opt := coup ; h_opt := h ))
   done; !coup_opt  
 
-  
-let rec minmax_ab etat prof a b = 
-   let p,index = etat in
+(* coplexite : O(sqrt(n))*)
+let compteur_bord (othellier,joueur) = 
+  let s = ref 0 in
+  for i = 0 to 7 do
+    s := !s + (- 2 * othellier.(i).(0) + 3) * othellier.(i).(0) (*fait -1 si la case est possede par le joueur 2, 1 si possédé par le joueur 1 et 0 sinon*)
+  done;
+  for i = 0 to 7 do
+      s := !s + (- 2 * othellier.(i).(0) + 3) * othellier.(i).(0) (*on compte deux fois les coins car ce sont des positions fortes*)
+  done;
+  !s
 
+let rec minmax_profondeur_dynamique prof etat : int =
+  let p,index = etat in 
+  let l = ref (ensemble_coups_possibles etat) in 
+  let coup_opt = ref (List.hd !l) in
+  let h_opt = ref (heuristique (jouer etat !coup_opt)) in 
+  while !l <> [] do 
+  let coup = List.hd !l in 
+  let nouvel_etat = jouer etat coup in 
+  l := List.tl !l ;
+  let stabilite = compteur_bord etat in
+  let h =
+  if index = 1 then
+    if stabilite < 0 then
+      minmax_profondeur_dynamique prof nouvel_etat
+    else
+      minmax_profondeur_dynamique (prof - 1) nouvel_etat
+  else
+    if stabilite > 0 then
+      minmax_profondeur_dynamique prof nouvel_etat
+    else
+      minmax_profondeur_dynamique (prof - 1) nouvel_etat
+    in
+  if index = 1 then 
+    (if h > !h_opt then 
+      (coup_opt := coup ; h_opt := h ))
+  else 
+    (if h < !h_opt then
+      (coup_opt := coup ; h_opt := h ))
+  done; !coup_opt
+
+let strategie_minmax_dynamique prof etat = 
+  let p,index = etat in 
+  let l = ref (ensemble_coups_possibles etat) in 
+  let coup_opt = ref (List.hd !l) in
+  let h_opt = ref (heuristique (jouer etat !coup_opt)) in 
+
+  while !l <> [] do 
+    let coup = List.hd !l in 
+    let nouvel_etat = jouer etat coup in 
+    l := List.tl !l ; 
+    let h = minmax_profondeur_dynamique (prof - 1) nouvel_etat in 
+    if index = 1 then 
+      (if h > !h_opt then 
+        (coup_opt := coup ; h_opt := h ))
+    else 
+      (if h < !h_opt then
+        (coup_opt := coup ; h_opt := h ))
+  done; !coup_opt  
+
+
+let rec minmax_ab etat prof a b = 
+  let p,index = etat in
   if est_partie_termine etat then 
     (if score etat > 0 then 
       10000                          (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)
@@ -229,10 +300,7 @@ let strategie_minmax_ab etat prof =
   let h_opt = ref (heuristique (jouer etat !coup_opt)) in 
   let a_aux = ref (-10000) in 
   let b_aux = ref 10000 in 
-
-  while !l <> [] do 
-    let coup = List.hd !l in 
-    let nouvel_etat = jouer etat coup in 
+  while !l <> [] do
     l := List.tl !l ; 
     let h = minmax_ab nouvel_etat (prof - 1) !a_aux !b_aux in 
     if index = 1 then 
@@ -241,6 +309,7 @@ let strategie_minmax_ab etat prof =
     else 
       (if h < !h_opt then
         (coup_opt := coup ; h_opt := h ; a_aux := min !a_aux h))
+<<<<<<< HEAD
   done; !coup_opt  
   
 let dict = Hashtbl.create 1000
@@ -310,6 +379,9 @@ let strategie_minmax_ab_memoisation etat prof =
       (if h < !h_opt then
         (coup_opt := coup ; h_opt := h ; a_aux := min !a_aux h))
   done; !coup_opt   
+=======
+  done; !coup_opt
+>>>>>>> 826be45b6cfdcd537382691cce52c5cf9b03b571
 
 let print_othellier etat = 
   let p,index = etat in
@@ -353,9 +425,12 @@ let () = print_coup (strategie_minmax etat2 1) *)
 (* let () = print_list (ensemble_coups_possibles etat3) *)
 
 (* let () = print_coup (strategie etat2) *)
+<<<<<<< HEAD
 
 (* let () = print_int (minmax etat2 1) ; print_string " ; " *)
 (* let () = print_int (minmax_ab etat2 9 (-10000) 10000) *)
 
 (* let () = print_coup (strategie_minmax (etat2) 3) *)
 let () = print_coup (strategie_minmax_ab_me (etat2) 7)
+=======
+>>>>>>> 826be45b6cfdcd537382691cce52c5cf9b03b571
