@@ -1,4 +1,4 @@
-open Othello
+open Othello;;
 type othello = int array array * int;;
 
 (*Crée l'état initial du jeu*)
@@ -210,4 +210,4 @@ let strategie_aleatoire (plateau, j) =
   let coup_choisi = Random.int nb_coups in
   List.nth liste_coups coup_choisi
 
-let () = print_int (partie (Othello.strategie_minmax 3) strategie_aleatoire true)
+let () = print_int (partie (Othello.strategie_minmax 4) strategie_aleatoire true)
