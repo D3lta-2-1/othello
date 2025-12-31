@@ -1,2 +1,0 @@
-# othello
-implementation of othello

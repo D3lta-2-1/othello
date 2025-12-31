@@ -1,5 +1,4 @@
-open Othello
-type othello = int array array * int;;
+(*open Othello*)
 
 (*Crée l'état initial du jeu*)
 let init_jeu () =
@@ -28,7 +27,7 @@ let coup_est_possible (plateau, _) (x, y) =
     ||
     (*droite*)
     (x < 7 && plateau.(x+1).(y) <> 0)
-    || 
+    ||
     (*bas*)
     (y > 0 && plateau.(x).(y-1) <> 0)
     ||
@@ -117,7 +116,7 @@ let jouer_coup (plateau, j) (x, y) =
         then retourner (plateau, j) (x, y) dir
     )
     liste_directions
-  
+
 let afficher_etat (plateau, _) =
   let char_from_jeton jeton = match jeton with
     | 0 -> '.'
@@ -210,4 +209,5 @@ let strategie_aleatoire (plateau, j) =
   let coup_choisi = Random.int nb_coups in
   List.nth liste_coups coup_choisi
 
-let () = print_int (partie (Othello.strategie_minmax_ab 6) (Othello.strategie_minmax_ab 3) true)
+(*let () = print_int (partie (Othello.strategie_minmax_ab 6) (Othello.strategie_minmax_ab 3) true)*)
+let () = print_int (partie (Minmax1.strategie_minmax_ab 6) strategie_aleatoire true)
