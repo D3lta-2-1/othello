@@ -1,94 +1,3 @@
-type othello = int array array * int
-type deplacement = H | HD | D | BD | B | BG | G | HG
-
-let init_plat =
-  let tab = Array.make_matrix 8 8 0 in
-  tab.(3).(3) <- 2 ; tab.(3).(4)<- 1 ; tab.(4).(3)<-1 ; tab.(4).(4)<-2 ;
-  (tab,1)
-
-let est_position_valide i j =
-  if i>=0 && i<=7 && j>=0 && j<=7 then true
-  else false
-
-let coup_direction i j d =
-  match d with
-  |H-> (i-1),j
-  |HG-> (i-1),(j-1)
-  |G-> i,(j-1)
-  |BG->(i+1),(j-1)
-  |B->(i+1),j
-  |BD->(i+1),(j+1)
-  |D->i,(j+1)
-  |HD->(i-1),(j+1)
-
-
-let liste_directions = [H; HG; G; BG; B; BD; D; HD]
-
-let est_coup_possible etat i j =
-  let p, _ = etat in
-  if not (est_position_valide i j && p.(i).(j) = 0) then false
-  else begin
-  let b = ref false in
-  let l = ref liste_directions in
-  while !l <> [] && not !b do
-    let d = List.hd !l in
-    l := List.tl !l ;
-    let i1,j1 = coup_direction i j d
-   in
-    if est_position_valide i1 j1 && p.(i1).(j1) <> 0 then b := true
-  done; !b end
-
-
-let ensemble_coups_possibles etat =
-  let l = ref [] in
-  for i = 0 to 7 do
-    for j = 0 to 7 do
-      if est_coup_possible etat i j then
-        l:= (i,j)::!l
-    done;
-  done;
-  !l
-
-let autre_joueur index = 2-index + 1
-
-let copie_othello etat =
-  let p,index = etat in
-  let p1 = Array.make_matrix 8 8 0 in
-  for i = 0 to 7 do
-    for j=0 to 7 do
-      p1.(i).(j)<-p.(i).(j)
-    done;
-  done; (p1,index)
-
-let rec retourner (p,index) l =
-  match l with
-  |[]-> ()
-  |(i,j)::q-> assert(p.(i).(j) <>0); p.(i).(j) <- autre_joueur (p.(i).(j)) ; retourner (p,index) q
-
-(* marche, normalement *)
-let jouer (etat_base:othello) (i,j) =
-  let etat = copie_othello etat_base in
-  let p,index = etat in
-  assert( i >= 0 && i <= 7 && j >=0 && j<=7 && p.(i).(j) = 0 && est_coup_possible etat i j);
-
-  p.(i).(j)<- index ;
-  let l = ref liste_directions in
-  let i1,j1 = ref i, ref j in
-  while !l <> [] do
-    let d = List.hd !l in
-    l := List.tl !l;
-    let liste_a_retourner = ref [] in
-    let i_aux,j_aux = coup_direction i j d in
-    i1:= i_aux ; j1:= j_aux ;
-    while est_position_valide !i1 !j1 && p.(!i1).(!j1) = autre_joueur index do
-      (liste_a_retourner := (!i1,!j1)::!liste_a_retourner ; let i_aux1,j_aux1 = coup_direction !i1 !j1 d in
-      i1:=i_aux1 ; j1:=j_aux1)
-    done;
-    if est_position_valide !i1 !j1 && p.(!i1).(!j1) = index then
-      retourner etat !liste_a_retourner
-
-  done; (p,autre_joueur index)
-
 (* a améliorer*)
 (* let base_score =
   [|
@@ -102,72 +11,47 @@ let jouer (etat_base:othello) (i,j) =
     [|5;5;5;5;5;5;5;5|]
   |] *)
 
-let heuristique etat =
-  let p, _ = etat in
+let heuritistic (p, _) =
   let s = ref 0 in
-  for i = 0 to 7 do
-    for j = 0 to 7 do
-      if p.(i).(j) = 1 then
-        s:= !s + 1
-      else if p.(i).(j) = 2 then
-        s:= !s - 1
-      else ()
-    done;
-  done;
+
+  let evaluate_at i j =
+    if p.(i).(j) = 1 then s := !s + 1
+    else if p.(i).(j) = 2 then s := !s - 1
+    else ()
+  in
+  Othello.iterate evaluate_at;
   !s
 
-let score etat =
-  let p, _ = etat in
+let score (p, _) =
   let s = ref 0 in
-  for i = 0 to 7 do
-    for j = 0 to 7 do
-      if p.(i).(j) = 1 then
-        s:= !s + 1
-      else if p.(i).(j) = 2 then
-        s:= !s - 1
-      else ()
-    done;
-  done;
+
+  let evaluate_at i j =
+    if p.(i).(j) = 1 then s := !s + 1
+    else if p.(i).(j) = 2 then s := !s - 1
+    else ()
+  in
+  Othello.iterate evaluate_at;
   !s
 
-(* renvoie 0 si la partie n'est pas terminée, 1 si noir a gagné, 2 si blanc a gagné *)
-let est_partie_termine (p, _) =
-  let b = ref true in
-  for i=0 to 7 do
-    for j = 0 to 7 do
-      if p.(i).(j) = 0 then
-        b := false
-    done;
-  done; !b
+let rec minmax state depth =
+  let _, index = state in
 
-let rec minmax etat prof =
-  let _, index = etat in
-
-  if est_partie_termine etat then
-    if score etat > 0 then
-      100000                           (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)                          (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)
-    else if score etat < 0 then
-      -100000
-    else
-      0
-
-  else if prof = 0 then
-    heuristique etat
+  if Othello.is_game_over state then
+    if score state > 0 then max_int else if score state < 0 then min_int else 0
+  else if depth = 0 then heuritistic state
   else begin
-    let l = ref (ensemble_coups_possibles etat) in
+    let l = ref (Othello.all_possible_moves state) in
     let coup0 = List.hd !l in
-    let h_opt = ref (heuristique (jouer etat coup0)) in
+    let h_opt = ref (heuritistic (Othello.play state coup0)) in
 
     while !l <> [] do
       let coup = List.hd !l in
-      let nouvel_etat = jouer etat coup in
-      l := List.tl !l ;
-      let h = minmax nouvel_etat (prof - 1) in
-      if index = 1 then
-        h_opt := max !h_opt h
-      else
-        h_opt := min !h_opt h
-    done; !h_opt
+      let nouvel_etat = Othello.play state coup in
+      l := List.tl !l;
+      let h = minmax nouvel_etat (depth - 1) in
+      if index = 1 then h_opt := max !h_opt h else h_opt := min !h_opt h
+    done;
+    !h_opt
   end
 
 (* let strategie etat =
@@ -175,246 +59,259 @@ let rec minmax etat prof =
   let (coup,heuristique) = List. hd (List.fast_sort (fun x y -> if x = y then 0 else if x < y then -1 else 1) init) in
   coup *)
 
-let strategie_minmax prof etat =
-  let _,index = etat in
-  let l = ref (ensemble_coups_possibles etat) in
+let minmax_strategy depth state =
+  let _, index = state in
+  let l = ref (Othello.all_possible_moves state) in
   let coup_opt = ref (List.hd !l) in
-  let h_opt = ref (heuristique (jouer etat !coup_opt)) in
+  let h_opt = ref (heuritistic (Othello.play state !coup_opt)) in
 
   while !l <> [] do
     let coup = List.hd !l in
-    let nouvel_etat = jouer etat coup in
-    l := List.tl !l ;
-    let h = minmax nouvel_etat (prof - 1) in
-    if index = 1 then
-      (if h > !h_opt then
-        (coup_opt := coup ; h_opt := h ))
-    else
-      (if h < !h_opt then
-        (coup_opt := coup ; h_opt := h ))
-  done; !coup_opt
+    let nouvel_etat = Othello.play state coup in
+    l := List.tl !l;
+    let h = minmax nouvel_etat (depth - 1) in
+    if index = 1 then (
+      if h > !h_opt then (
+        coup_opt := coup;
+        h_opt := h))
+    else if h < !h_opt then (
+      coup_opt := coup;
+      h_opt := h)
+  done;
+  !coup_opt
 
 (* coplexite : O(sqrt(n))*)
-let compteur_bord (othellier, _) =
+let edge_counter (board, _) =
   let s = ref 0 in
   for i = 0 to 7 do
-    s := !s + (- 2 * othellier.(i).(7) + 3) * othellier.(i).(7) (*fait -1 si la case est possede par le joueur 2, 1 si possédé par le joueur 1 et 0 sinon*)
+    s := !s + (((-2 * board.(i).(7)) + 3) * board.(i).(7))
+    (*fait -1 si la case est possede par le joueur 2, 1 si possédé par le joueur 1 et 0 sinon*)
   done;
   for i = 0 to 7 do
-      s := !s + (- 2 * othellier.(i).(0) + 3) * othellier.(i).(0) (*on compte deux fois les coins car ce sont des positions fortes*)
+    s := !s + (((-2 * board.(i).(0)) + 3) * board.(i).(0))
+    (*on compte deux fois les coins car ce sont des positions fortes*)
   done;
   !s
 
-let rec minmax_profondeur_dynamique prof etat : int =
-  if prof = 0 || est_partie_termine etat then heuristique etat
+let rec minmax_profondeur_dynamique depth state : int =
+  if depth = 0 || Othello.is_game_over state then heuritistic state
   else
-    let _, index = etat in
-    let l = ref (ensemble_coups_possibles etat) in
+    let _, index = state in
+    let l = ref (Othello.all_possible_moves state) in
     let coup_opt = ref (List.hd !l) in
-    let h_opt = ref (heuristique (jouer etat !coup_opt)) in
+    let h_opt = ref (heuritistic (Othello.play state !coup_opt)) in
     while !l <> [] do
       let coup = List.hd !l in
-      let nouvel_etat = jouer etat coup in
-      l := List.tl !l ;
-      let stabilite = compteur_bord etat in
+      let nouvel_etat = Othello.play state coup in
+      l := List.tl !l;
+      let stabilite = edge_counter state in
       let h =
         if index = 1 then
-          if stabilite < 0 then
-            minmax_profondeur_dynamique prof nouvel_etat
-          else
-            minmax_profondeur_dynamique (prof - 1) nouvel_etat
-        else
-          if stabilite > 0 then
-            minmax_profondeur_dynamique prof nouvel_etat
-          else
-            minmax_profondeur_dynamique (prof - 1) nouvel_etat
+          if stabilite < 0 then minmax_profondeur_dynamique depth nouvel_etat
+          else minmax_profondeur_dynamique (depth - 1) nouvel_etat
+        else if stabilite > 0 then minmax_profondeur_dynamique depth nouvel_etat
+        else minmax_profondeur_dynamique (depth - 1) nouvel_etat
       in
       if index = 1 then
-        if h > !h_opt then (coup_opt := coup ; h_opt := h)
-      else
-        if h < !h_opt then (coup_opt := coup ; h_opt := h)
+        if h > !h_opt then (
+          coup_opt := coup;
+          h_opt := h)
+        else if h < !h_opt then (
+          coup_opt := coup;
+          h_opt := h)
     done;
     !h_opt
 
-let strategie_minmax_dynamique prof etat =
-  let _, index = etat in
-  let l = ref (ensemble_coups_possibles etat) in
-  let coup_opt = ref (List.hd !l) in
-  let h_opt = ref (heuristique (jouer etat !coup_opt)) in
+let strategie_minmax_dynamique depth state =
+  let _, index = state in
+  let l = ref (Othello.all_possible_moves state) in
+  let optimal_move = ref (List.hd !l) in
+  let h_opt = ref (heuritistic (Othello.play state !optimal_move)) in
 
   while !l <> [] do
-    let coup = List.hd !l in
-    let nouvel_etat = jouer etat coup in
-    l := List.tl !l ;
-    let h = minmax_profondeur_dynamique (prof - 1) nouvel_etat in
-    if index = 1 then
-      (if h > !h_opt then
-        (coup_opt := coup ; h_opt := h ))
-    else
-      (if h < !h_opt then
-        (coup_opt := coup ; h_opt := h ))
-  done; !coup_opt
+    let move = List.hd !l in
+    let nouvel_etat = Othello.play state move in
+    l := List.tl !l;
+    let h = minmax_profondeur_dynamique (depth - 1) nouvel_etat in
+    if index = 1 then (
+      if h > !h_opt then (
+        optimal_move := move;
+        h_opt := h))
+    else if h < !h_opt then (
+      optimal_move := move;
+      h_opt := h)
+  done;
+  !optimal_move
 
+let rec minmax_ab depth state a b =
+  let _, index = state in
 
-let rec minmax_ab etat prof a b =
-   let _, index = etat in
-
-  if est_partie_termine etat then
-    (if score etat > 0 then
-      10000                          (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)
-    else if score etat < 0 then
-      -10000
-    else
-      0
-    )
-  else if prof = 0 then
-    heuristique etat
+  if Othello.is_game_over state then
+    if score state > 0 then max_int else if score state < 0 then max_int else 0
+  else if depth = 0 then heuritistic state
   else begin
     let a_aux = ref a in
     let b_aux = ref b in
-    let l = ref (ensemble_coups_possibles etat) in
+    let l = ref (Othello.all_possible_moves state) in
     let coup0 = List.hd !l in
-    let h_opt = ref (heuristique (jouer etat coup0)) in
+    let h_opt = ref (heuritistic (Othello.play state coup0)) in
 
     let doit_continuer = ref true in
     while !doit_continuer && !l <> [] do
       let coup = List.hd !l in
-      let nouvel_etat = jouer etat coup in
-      l := List.tl !l ;
-      let h = minmax_ab nouvel_etat (prof - 1) !a_aux !b_aux in
+      let nouvel_etat = Othello.play state coup in
+      l := List.tl !l;
+      let h = minmax_ab (depth - 1) nouvel_etat !a_aux !b_aux in
       if index = 1 then
-       (if h > !b_aux then
-          (doit_continuer := false ; h_opt := h)
-        else
-          (h_opt := max !h_opt h ; a_aux := max !a_aux !h_opt))
-      else
-       (if h < !a_aux then
-          (doit_continuer := false ; h_opt := h )
-        else
-        (h_opt := min !h_opt h ; b_aux := min !b_aux !h_opt ))
-    done; !h_opt
+        if h > !b_aux then (
+          doit_continuer := false;
+          h_opt := h)
+        else (
+          h_opt := max !h_opt h;
+          a_aux := max !a_aux !h_opt)
+      else if h < !a_aux then (
+        doit_continuer := false;
+        h_opt := h)
+      else (
+        h_opt := min !h_opt h;
+        b_aux := min !b_aux !h_opt)
+    done;
+    !h_opt
   end
 
-let strategie_minmax_ab prof etat =
-  let _, index = etat in
-  let l = ref (ensemble_coups_possibles etat) in
-  let coup_opt = ref (List.hd !l) in
-  let h_opt = ref (heuristique (jouer etat !coup_opt)) in
-  let a_aux = ref (-10000) in
-  let b_aux = ref 10000 in
+let strategie_minmax_ab depth state =
+  let _, index = state in
+  let l = ref (Othello.all_possible_moves state) in
+  let optimal_move = ref (List.hd !l) in
+  let h_opt = ref (heuritistic (Othello.play state !optimal_move)) in
+  let a_aux = ref min_int in
+  let b_aux = ref max_int in
 
   while !l <> [] do
-    let coup = List.hd !l in
-    let nouvel_etat = jouer etat coup in
-    l := List.tl !l ;
-    let h = minmax_ab nouvel_etat (prof - 1) !a_aux !b_aux in
-    if index = 1 then
-      (if !a_aux >= !b_aux then
-        h_opt := max !h_opt h ;
-        a_aux := max !a_aux h ;
-      )
-    else
-      (if !b_aux <= !a_aux then
-        h_opt := min !h_opt h ;
-        b_aux := min !b_aux h ;
-      )
-  done; !coup_opt
+    let move = List.hd !l in
+    let new_state = Othello.play state move in
+    l := List.tl !l;
+    let h = minmax_ab (depth - 1) new_state !a_aux !b_aux in
+    if index = 1 then (
+      if !a_aux >= !b_aux then h_opt := max !h_opt h;
+      a_aux := max !a_aux h)
+    else (
+      if !b_aux <= !a_aux then h_opt := min !h_opt h;
+      b_aux := min !b_aux h)
+  done;
+  !optimal_move
 
 let dict = Hashtbl.create 1000
 
 let rec minmax_ab_memoisation etat prof a b =
   let _, index = etat in
 
-  if est_partie_termine etat then
-    (if score etat > 0 then
-      10000                          (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)
-    else if score etat < 0 then
-      -10000
-    else
-      0
-    )
-  else if prof = 0 then
-    heuristique etat
+  if Othello.is_game_over etat then
+    if score etat > 0 then 10000
+      (* les valeurs du minmax sont comprises entre 0 et 8*8=64 0 à cause de l'heuristique donc on prend 100 comme l'infini *)
+    else if score etat < 0 then -10000
+    else 0
+  else if prof = 0 then heuritistic etat
   else begin
     match Hashtbl.find_opt dict etat with
-    |Some(x) -> x
-    |None-> begin
+    | Some x -> x
+    | None -> begin
+        let a_aux = ref a in
+        let b_aux = ref b in
+        let l = ref (Othello.all_possible_moves etat) in
+        let coup0 = List.hd !l in
+        let h_opt = ref (heuritistic (Othello.play etat coup0)) in
 
-    let a_aux = ref a in
-    let b_aux = ref b in
-    let l = ref (ensemble_coups_possibles etat) in
-    let coup0 = List.hd !l in
-    let h_opt = ref (heuristique (jouer etat coup0)) in
-
-    let doit_continuer = ref true in
-    while !doit_continuer && !l <> [] do
-      let coup = List.hd !l in
-      let nouvel_etat = jouer etat coup in
-      l := List.tl !l ;
-      let h = minmax_ab_memoisation nouvel_etat (prof - 1) !a_aux !b_aux in
-      if index = 1 then
-       (if h > !b_aux then
-          (doit_continuer := false ; h_opt := h)
-        else
-          (h_opt := max !h_opt h ; a_aux := max !a_aux !h_opt))
-      else
-       (if h < !a_aux then
-          (doit_continuer := false ; h_opt := h )
-        else
-        (h_opt := min !h_opt h ; b_aux := min !b_aux !h_opt ))
-    done; Hashtbl.add dict etat !h_opt ;
-   !h_opt
+        let doit_continuer = ref true in
+        while !doit_continuer && !l <> [] do
+          let coup = List.hd !l in
+          let nouvel_etat = Othello.play etat coup in
+          l := List.tl !l;
+          let h = minmax_ab_memoisation nouvel_etat (prof - 1) !a_aux !b_aux in
+          if index = 1 then
+            if h > !b_aux then (
+              doit_continuer := false;
+              h_opt := h)
+            else (
+              h_opt := max !h_opt h;
+              a_aux := max !a_aux !h_opt)
+          else if h < !a_aux then (
+            doit_continuer := false;
+            h_opt := h)
+          else (
+            h_opt := min !h_opt h;
+            b_aux := min !b_aux !h_opt)
+        done;
+        Hashtbl.add dict etat !h_opt;
+        !h_opt
+      end
   end
-end
 
 let strategie_minmax_ab_memoisation prof etat =
   let _, index = etat in
-  let l = ref (ensemble_coups_possibles etat) in
+  let l = ref (Othello.all_possible_moves etat) in
   let coup_opt = ref (List.hd !l) in
-  let h_opt = ref (heuristique (jouer etat !coup_opt)) in
+  let h_opt = ref (heuritistic (Othello.play etat !coup_opt)) in
   let a_aux = ref (-10000) in
   let b_aux = ref 10000 in
 
   while !l <> [] do
     let coup = List.hd !l in
-    let nouvel_etat = jouer etat coup in
-    l := List.tl !l ;
-    let h = minmax_ab nouvel_etat (prof - 1) !a_aux !b_aux in
-    if index = 1 then
-      (if h > !h_opt then
-        (coup_opt := coup ; h_opt := h ; a_aux := max !a_aux h))
-    else
-      (if h < !h_opt then
-        (coup_opt := coup ; h_opt := h ; a_aux := min !a_aux h))
-  done; !coup_opt
+    let nouvel_etat = Othello.play etat coup in
+    l := List.tl !l;
+    let h = minmax_ab (prof - 1) nouvel_etat !a_aux !b_aux in
+    if index = 1 then (
+      if h > !h_opt then (
+        coup_opt := coup;
+        h_opt := h;
+        a_aux := max !a_aux h))
+    else if h < !h_opt then (
+      coup_opt := coup;
+      h_opt := h;
+      a_aux := min !a_aux h)
+  done;
+  !coup_opt
 
 let print_othellier etat =
   let p, _ = etat in
   for i = 0 to 7 do
     for j = 0 to 7 do
-      print_string "| " ; if p.(i).(j) = 0 then print_string "0 "
+      print_string "| ";
+      if p.(i).(j) = 0 then print_string "0 "
       else if p.(i).(j) = 1 then print_string "N "
       else if p.(j).(j) = 2 then print_string "B "
-      else (print_int (p.(i).(j)) ; print_char ' ') (* Il y a des erreurs d'affichage, je ne comprends pas (voir plus bas les tests) *)
+      else (
+        print_int p.(i).(j);
+        print_char ' '
+        (* Il y a des erreurs d'affichage, je ne comprends pas (voir plus bas les tests) *))
     done;
-    print_char '|' ; print_char '\n'
-  done; print_char '\n'
+    print_char '|';
+    print_char '\n'
+  done;
+  print_char '\n'
 
-let print_bool b =
-  if b then print_string "true"
-  else print_string "false"
+let print_bool b = if b then print_string "true" else print_string "false"
 
-let print_list l = List.iter (fun (i,j)->print_int i ; print_string "," ; print_int j ; print_string " ; ") l
+let print_list l =
+  List.iter
+    (fun (i, j) ->
+      print_int i;
+      print_string ",";
+      print_int j;
+      print_string " ; ")
+    l
 
-let print_coup (i,j) = print_int i ; print_char ',' ; print_int j
+let print_coup (i, j) =
+  print_int i;
+  print_char ',';
+  print_int j
 
-
-let etat = init_plat
-let etat1 = jouer etat (2,2)
+let etat = Othello.init_board
+let etat1 = Othello.play etat (2, 2)
 (* let () = print_bool (est_coup_possible etat 3 3 ) *)
 (* let () = print_othellier (jouer etat (2,2)) *)
 
-let etat2 = jouer etat1 (2,5)
+let etat2 = Othello.play etat1 (2, 5)
 let () = print_othellier etat2
 
 (* let () = print_bool (p2.(2).(5) = 2)  ?? *)
@@ -422,9 +319,6 @@ let () = print_othellier etat2
 (* let () = print_int (minmax etat2 1) ; print_char ';'
 
 let () = print_coup (strategie_minmax etat2 1) *)
-
-
-
 (* let etat3 = jouer etat2 (5,5) *)
 (* let () = print_othellier etat3 *)
 (* let () = print_list (ensemble_coups_possibles etat3) *)
