@@ -11,23 +11,23 @@
     [|5;5;5;5;5;5;5;5|]
   |] *)
 
-let heuritistic (p, _) =
+let heuritistic (board, _) =
   let s = ref 0 in
 
-  let evaluate_at i j =
-    if p.(i).(j) = 1 then s := !s + 1
-    else if p.(i).(j) = 2 then s := !s - 1
+  let evaluate_at pos =
+    if Othello.get board pos = 1 then s := !s + 1
+    else if Othello.get board pos = 2 then s := !s - 1
     else ()
   in
   Othello.iterate evaluate_at;
   !s
 
-let score (p, _) =
+let score (board, _) =
   let s = ref 0 in
 
-  let evaluate_at i j =
-    if p.(i).(j) = 1 then s := !s + 1
-    else if p.(i).(j) = 2 then s := !s - 1
+  let evaluate_at pos =
+    if Othello.get board pos = 1 then s := !s + 1
+    else if Othello.get board pos = 2 then s := !s - 1
     else ()
   in
   Othello.iterate evaluate_at;
@@ -273,15 +273,15 @@ let strategie_minmax_ab_memoisation prof etat =
   !coup_opt
 
 let print_othellier etat =
-  let p, _ = etat in
+  let board, _ = etat in
   for i = 0 to 7 do
     for j = 0 to 7 do
       print_string "| ";
-      if p.(i).(j) = 0 then print_string "0 "
-      else if p.(i).(j) = 1 then print_string "N "
-      else if p.(j).(j) = 2 then print_string "B "
+      if board.(i).(j) = 0 then print_string "0 "
+      else if board.(i).(j) = 1 then print_string "N "
+      else if board.(j).(j) = 2 then print_string "B "
       else (
-        print_int p.(i).(j);
+        print_int board.(i).(j);
         print_char ' '
         (* Il y a des erreurs d'affichage, je ne comprends pas (voir plus bas les tests) *))
     done;
