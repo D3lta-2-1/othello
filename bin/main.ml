@@ -166,28 +166,5 @@ let partie strategie1 strategie2 affichage =
   Printf.printf "Temps J1 : %fs J2 :%fs\n" temps.(0) temps.(1);
   scorer !etat
 
-(*Renvoie la liste des coups possible pour un plateau donné*)
-let lister_coups_possibles (plateau, _) =
-  let liste_coups = ref [] in
-  let nb_coups = ref 0 in
-  for x = 0 to 7 do
-    for y = 0 to 7 do
-      if coup_est_possible (plateau, 0) (x, y) then begin
-        liste_coups := (x, y) :: !liste_coups;
-        incr nb_coups
-      end
-    done
-  done;
-  (* print_string "Coups possibles :\n"; *)
-  (* List.iter (fun (x, y) -> Printf.printf "%d %d\n" x y) !liste_coups; *)
-  (* print_newline (); *)
-  (!liste_coups, !nb_coups)
-
-(*Joue un coup aléatoire parmi ceux possibles*)
-let strategie_aleatoire (plateau, j) =
-  let liste_coups, nb_coups = lister_coups_possibles (plateau, j) in
-  let coup_choisi = Random.int nb_coups in
-  List.nth liste_coups coup_choisi
-
 (*let () = print_int (partie (Othello.strategie_minmax_ab 6) (Othello.strategie_minmax_ab 3) true)*)
-let () = print_int (partie Strategies.strategy1 strategie_aleatoire true)
+let () = print_int (partie Strategies.strategy3 Strategies.strategy2 true)

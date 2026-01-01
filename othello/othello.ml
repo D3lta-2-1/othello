@@ -110,6 +110,7 @@ let play (original_state : othello) pos =
   change_turn state
 
 let player_turn (_, player) = player
+let board (board, _) = board
 
 let is_game_over (board, _) =
   let b = ref true in

@@ -1,17 +1,26 @@
-(* a améliorer*)
-(* let base_score =
+let base_score =
   [|
-    [|5;5;5;5;5;5;5;5|];
-    [|5;4;4;4;4;4;4;5|];
-    [|5;4;3;3;3;3;4;5|];
-    [|5;4;3;2;2;3;4;5|];
-    [|5;4;3;2;2;3;4;5|];
-    [|5;4;3;3;3;3;4;5|];
-    [|5;4;4;4;4;4;4;5|];
-    [|5;5;5;5;5;5;5;5|]
-  |] *)
+    [| 5; 5; 5; 5; 5; 5; 5; 5 |];
+    [| 5; 4; 4; 4; 4; 4; 4; 5 |];
+    [| 5; 4; 3; 3; 3; 3; 4; 5 |];
+    [| 5; 4; 3; 2; 2; 3; 4; 5 |];
+    [| 5; 4; 3; 2; 2; 3; 4; 5 |];
+    [| 5; 4; 3; 3; 3; 3; 4; 5 |];
+    [| 5; 4; 4; 4; 4; 4; 4; 5 |];
+    [| 5; 5; 5; 5; 5; 5; 5; 5 |];
+  |]
 
-();;
+let agressive_on_corner =
+  [|
+    [| 6; 5; 4; 3; 3; 4; 5; 6 |];
+    [| 5; 4; 3; 2; 2; 3; 4; 5 |];
+    [| 4; 3; 2; 1; 1; 2; 3; 4 |];
+    [| 3; 2; 1; 0; 0; 1; 2; 3 |];
+    [| 3; 2; 1; 0; 0; 1; 2; 3 |];
+    [| 4; 3; 2; 1; 1; 2; 3; 4 |];
+    [| 5; 4; 3; 2; 2; 3; 4; 5 |];
+    [| 6; 5; 4; 3; 3; 4; 5; 6 |];
+  |]
 
 type 'a iter_result = Continue | Stop of 'a
 
@@ -22,29 +31,39 @@ let break_iter (f : 'a -> 'b iter_result) =
   in
   loop
 
-let score (board, _) =
+(*allow us to choose for which player we are trying to maximize*)
+type goal = Max | Min
+
+let score (goal : int -> goal) board =
   let s = ref 0 in
 
   let count pos =
-    if Othello.get board pos = Othello.black then s := !s + 1
-    else if Othello.get board pos = Othello.white then s := !s - 1
-    else ()
+    let piece = Othello.get board pos in
+    if piece <> 0 then
+      match goal piece with Max -> s := !s + 1 | Min -> s := !s - 1
   in
   Othello.iterate count;
   !s
 
-type goal = Max | Min
+let corner_heuristic (goal : int -> goal) board =
+  let s = ref 0 in
+  let count pos =
+    let piece = Othello.get board pos in
+    let score = Othello.get agressive_on_corner pos in
+    if piece <> 0 then
+      match goal piece with Max -> s := !s + score | Min -> s := !s - score
+  in
+  Othello.iterate count;
+  !s
 
 (*If we are black, we want to maximize our score
 If we are white, we want to minimize our score, so we must flip min and max functions,
 it should return a move a the associated score ?
 *)
 let rec min_max_ab state (goal : int -> goal) depth a b heuritistic =
-  if Othello.is_game_over state then
-    if score state > 0 then max_int (*black wins*)
-    else if score state < 0 then min_int (*white wins*)
-    else 0
-  else if depth = 0 then heuritistic state
+  if Othello.is_game_over state then score goal (Othello.board state)
+    (* we don't want to just win, we want to win with the most pieces *)
+  else if depth = 0 then heuritistic goal (Othello.board state)
   else begin
     let a = ref a in
     let b = ref b in
@@ -89,23 +108,34 @@ let rec min_max_ab state (goal : int -> goal) depth a b heuritistic =
     | None -> assert false (*should be unreachable*)
   end
 
-let maximize_for_black = function 1 -> Max | 2 -> Min | _ -> assert false
-let maximize_for_white = function 1 -> Min | 2 -> Max | _ -> assert false
+let maximize_for_black = function
+  | 1 -> Max
+  | 2 -> Min
+  | _ -> assert false (*black is 1*)
+
+let maximize_for_white = function
+  | 1 -> Min
+  | 2 -> Max
+  | _ -> assert false (*white is 2*)
 
 let use_corresponding_goal = function
   | 1 -> maximize_for_black
   | 2 -> maximize_for_white
   | _ -> assert false
 
+let random_strategy state =
+  let moves = Othello.all_possible_moves state in
+  List.nth moves (Random.int (List.length moves))
+
 (*first attempt, using score as an heuristic*)
-let strategy1 state =
+let generic_minmax_strategy heuristic depth state =
   (*assume that we are playing this turn*)
   let player_turn = Othello.player_turn state in
   let goal = use_corresponding_goal player_turn in
   let moves = Othello.all_possible_moves state in
 
   let evaluate_move move =
-    min_max_ab (Othello.play state move) goal 4 min_int max_int score
+    min_max_ab (Othello.play state move) goal depth min_int max_int heuristic
   in
 
   let moves = List.map (fun move -> (move, evaluate_move move)) moves in
@@ -116,9 +146,19 @@ let strategy1 state =
     | t :: q ->
         List.fold_left
           (fun (m1, s1) (m2, s2) -> if s1 > s2 then (m1, s1) else (m2, s2))
+            (* always choose the move with the highest score *)
           t q
   in
   move
+
+(* use score as heuristic with 4 as max depth *)
+let strategy1 = generic_minmax_strategy score 3
+
+(* use score as heuristic with 2 as max depth *)
+let strategy2 = generic_minmax_strategy score 2
+
+(* use corner heuristic with 4 as max depth *)
+let strategy3 = generic_minmax_strategy corner_heuristic 3
 
 (*
 let heuritistic (board, _) =
