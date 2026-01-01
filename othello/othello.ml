@@ -65,9 +65,11 @@ let is_move_possible state pos =
   end
 
 let all_possible_moves etat =
-  let l = ref [] in
-  iterate (fun pos -> if is_move_possible etat pos then l := pos :: !l);
-  !l
+  let vec = Dynarray.create () in
+  Dynarray.ensure_capacity vec 32;
+  iterate (fun pos ->
+      if is_move_possible etat pos then Dynarray.add_last vec pos);
+  vec
 
 let other_player = function
   | c when c = black -> white

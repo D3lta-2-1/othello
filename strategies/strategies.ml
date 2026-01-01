@@ -24,12 +24,29 @@ let agressive_on_corner =
 
 type 'a iter_result = Continue | Stop of 'a
 
-let break_iter (f : 'a -> 'b iter_result) =
-  let rec loop = function
-    | [] -> None
-    | x :: xs -> ( match f x with Continue -> loop xs | Stop y -> Some y)
+let break_iter (f : 'a -> 'b iter_result) vec =
+  let i = ref 0 in
+  let rec loop () =
+    if !i >= Dynarray.length vec then None
+    else
+      match f (Dynarray.get vec !i) with
+      | Continue ->
+          incr i;
+          loop ()
+      | Stop y -> Some y
   in
-  loop
+  loop ()
+
+let swap vec i j =
+  let tmp = Dynarray.get vec i in
+  Dynarray.set vec i (Dynarray.get vec j);
+  Dynarray.set vec j tmp
+
+let shuffle vec =
+  for i = 0 to Dynarray.length vec - 1 do
+    let j = Random.int (Dynarray.length vec - i) in
+    swap vec i j
+  done
 
 (*allow us to choose for which player we are trying to maximize*)
 type goal = Max | Min
@@ -123,33 +140,30 @@ let use_corresponding_goal = function
   | 2 -> maximize_for_white
   | _ -> assert false
 
-let random_strategy state =
-  let moves = Othello.all_possible_moves state in
-  List.nth moves (Random.int (List.length moves))
-
 (*first attempt, using score as an heuristic*)
 let generic_minmax_strategy heuristic depth state =
   (*assume that we are playing this turn*)
   let player_turn = Othello.player_turn state in
   let goal = use_corresponding_goal player_turn in
   let moves = Othello.all_possible_moves state in
+  shuffle moves;
 
   let evaluate_move move =
     min_max_ab (Othello.play state move) goal depth min_int max_int heuristic
   in
 
-  let moves = List.map (fun move -> (move, evaluate_move move)) moves in
-
+  let moves = Dynarray.map (fun move -> (move, evaluate_move move)) moves in
+  let last = Dynarray.pop_last moves in
   let move, _ =
-    match moves with
-    | [] -> assert false (* no moves available *)
-    | t :: q ->
-        List.fold_left
-          (fun (m1, s1) (m2, s2) -> if s1 > s2 then (m1, s1) else (m2, s2))
-            (* always choose the move with the highest score *)
-          t q
+    Dynarray.fold_left
+      (fun (m1, s1) (m2, s2) -> if s1 > s2 then (m1, s1) else (m2, s2))
+      last moves
   in
   move
+
+let random_strategy state =
+  let moves = Othello.all_possible_moves state in
+  Dynarray.get moves (Random.int (Dynarray.length moves))
 
 (* use score as heuristic with 4 as max depth *)
 let strategy1 = generic_minmax_strategy score 3
