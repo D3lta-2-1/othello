@@ -11,26 +11,125 @@
     [|5;5;5;5;5;5;5;5|]
   |] *)
 
-let heuritistic (board, _) =
-  let s = ref 0 in
+();;
 
-  let evaluate_at pos =
-    if Othello.get board pos = 1 then s := !s + 1
-    else if Othello.get board pos = 2 then s := !s - 1
-    else ()
+type 'a iter_result = Continue | Stop of 'a
+
+let break_iter (f : 'a -> 'b iter_result) =
+  let rec loop = function
+    | [] -> None
+    | x :: xs -> ( match f x with Continue -> loop xs | Stop y -> Some y)
   in
-  Othello.iterate evaluate_at;
-  !s
+  loop
 
 let score (board, _) =
   let s = ref 0 in
 
-  let evaluate_at pos =
+  let count pos =
+    if Othello.get board pos = Othello.black then s := !s + 1
+    else if Othello.get board pos = Othello.white then s := !s - 1
+    else ()
+  in
+  Othello.iterate count;
+  !s
+
+type goal = Max | Min
+
+(*If we are black, we want to maximize our score
+If we are white, we want to minimize our score, so we must flip min and max functions,
+it should return a move a the associated score ?
+*)
+let rec min_max_ab state (goal : int -> goal) depth a b heuritistic =
+  if Othello.is_game_over state then
+    if score state > 0 then max_int (*black wins*)
+    else if score state < 0 then min_int (*white wins*)
+    else 0
+  else if depth = 0 then heuritistic state
+  else begin
+    let a = ref a in
+    let b = ref b in
+
+    let maximize v =
+      if v >= !b then Stop v
+      else begin
+        a := max !a v;
+        Continue
+      end
+    in
+
+    let minimize v =
+      if v <= !a then Stop v
+      else begin
+        b := min !b v;
+        Continue
+      end
+    in
+
+    let counting_function =
+      match goal (Othello.player_turn state) with
+      | Max -> maximize
+      | Min -> minimize
+    in
+
+    let moves = Othello.all_possible_moves state in
+    let result =
+      break_iter
+        (fun move ->
+          let v =
+            min_max_ab (Othello.play state move) goal (depth - 1) !a !b
+              heuritistic
+          in
+          counting_function v)
+        moves
+    in
+    match result with
+    | Some v -> v
+    | None when Othello.player_turn state = Othello.black -> !a
+    | None when Othello.player_turn state = Othello.white -> !b
+    | None -> assert false (*should be unreachable*)
+  end
+
+let maximize_for_black = function 1 -> Max | 2 -> Min | _ -> assert false
+let maximize_for_white = function 1 -> Min | 2 -> Max | _ -> assert false
+
+let use_corresponding_goal = function
+  | 1 -> maximize_for_black
+  | 2 -> maximize_for_white
+  | _ -> assert false
+
+(*first attempt, using score as an heuristic*)
+let strategy1 state =
+  (*assume that we are playing this turn*)
+  let player_turn = Othello.player_turn state in
+  let goal = use_corresponding_goal player_turn in
+  let moves = Othello.all_possible_moves state in
+
+  let evaluate_move move =
+    min_max_ab (Othello.play state move) goal 4 min_int max_int score
+  in
+
+  let moves = List.map (fun move -> (move, evaluate_move move)) moves in
+
+  let move, _ =
+    match moves with
+    | [] -> assert false (* no moves available *)
+    | t :: q ->
+        List.fold_left
+          (fun (m1, s1) (m2, s2) -> if s1 > s2 then (m1, s1) else (m2, s2))
+          t q
+  in
+  move
+
+(*
+let heuritistic (board, _) =
+  let s = ref 0 in
+
+  let count pos =
     if Othello.get board pos = 1 then s := !s + 1
     else if Othello.get board pos = 2 then s := !s - 1
     else ()
   in
-  Othello.iterate evaluate_at;
+  Othello.iterate count;
   !s
 
 let rec minmax state depth =
@@ -270,4 +369,4 @@ let strategie_minmax_ab_memoisation prof etat =
       h_opt := h;
       a_aux := min !a_aux h)
   done;
-  !coup_opt
+  !coup_opt*)

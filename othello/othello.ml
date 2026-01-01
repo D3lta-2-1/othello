@@ -78,9 +78,7 @@ let change_turn (board, player) = (board, other_player player)
 
 let copy_board etat =
   let board, player = etat in
-  let p1 = Array.make_matrix 8 8 0 in
-  iterate (fun (i, j) -> p1.(i).(j) <- board.(i).(j));
-  (p1, player)
+  (Array.map Array.copy board, player)
 
 let flip (board, player) l = List.iter (fun (i, j) -> board.(i).(j) <- player) l
 
@@ -111,7 +109,8 @@ let play (original_state : othello) pos =
     directions;
   change_turn state
 
-(* renvoie 0 si la partie n'est pas terminée, 1 si noir a gagné, 2 si blanc a gagné *)
+let player_turn (_, player) = player
+
 let is_game_over (board, _) =
   let b = ref true in
   iterate (fun pos -> if get board pos = 0 then b := false);
