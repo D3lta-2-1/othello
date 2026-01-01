@@ -14,6 +14,7 @@ type displacement =
 let board_size = 8
 let white = 2
 let black = 1
+let empty = 0
 
 let init_board =
   let tab = Array.make_matrix board_size board_size 0 in
@@ -30,7 +31,7 @@ let iterate (f : int * int -> unit) =
     done
   done
 
-let is_position_valid (i, j) =
+let is_position_within_borders (i, j) =
   if i >= 0 && i < board_size && j >= 0 && j < board_size then true else false
 
 let get board (i, j) = board.(i).(j)
@@ -49,18 +50,17 @@ let get_case_from (i, j) d =
 let directions =
   [ Up; UpLeft; Left; BottomLeft; Bottom; BottomRight; Right; UpRight ]
 
-let is_move_possible state (i, j) =
+let is_move_possible state pos =
   let board, _ = state in
-  if not (is_position_valid (i, j) && board.(i).(j) = 0) then false
+  if not (is_position_within_borders pos && get board pos = empty) then false
   else begin
     let b = ref false in
-    let l = ref directions in
-    while !l <> [] && not !b do
-      let d = List.hd !l in
-      l := List.tl !l;
-      let i1, j1 = get_case_from (i, j) d in
-      if is_position_valid (i1, j1) && board.(i1).(j1) <> 0 then b := true
-    done;
+    List.iter
+      (fun d ->
+        let neighboor = get_case_from pos d in
+        if is_position_within_borders neighboor && get board neighboor <> empty
+        then b := true)
+      directions;
     !b
   end
 
@@ -74,35 +74,42 @@ let other_player = function
   | c when c = white -> black
   | _ -> assert false
 
+let change_turn (board, player) = (board, other_player player)
+
 let copy_board etat =
   let board, player = etat in
   let p1 = Array.make_matrix 8 8 0 in
   iterate (fun (i, j) -> p1.(i).(j) <- board.(i).(j));
   (p1, player)
 
-let rec flip (board, player) l =
-  List.iter (fun (i, j) -> board.(i).(j) <- other_player board.(i).(j)) l
+let flip (board, player) l = List.iter (fun (i, j) -> board.(i).(j) <- player) l
 
 let find_cases_to_flip (board, player) pos d =
   let cases = ref [] in
   let next_case = ref (get_case_from pos d) in
   let other_color = other_player player in
-  while is_position_valid !next_case && get board !next_case == other_color do
+  while
+    is_position_within_borders !next_case && get board !next_case == other_color
+  do
     cases := !next_case :: !cases;
     next_case := get_case_from !next_case d
   done;
-  if is_position_valid !next_case && get board !next_case = player then !cases
+  if is_position_within_borders !next_case && get board !next_case = player then
+    !cases
   else []
 
 let play (original_state : othello) pos =
   let state = copy_board original_state in
-  assert (is_position_valid pos && is_move_possible state pos);
+  assert (is_position_within_borders pos && is_move_possible state pos);
+  let i, j = pos in
+  let board, player = state in
+  board.(i).(j) <- player;
   List.iter
     (fun d ->
       let cases_to_flip = find_cases_to_flip state pos d in
       flip state cases_to_flip)
     directions;
-  state
+  change_turn state
 
 (* renvoie 0 si la partie n'est pas terminée, 1 si noir a gagné, 2 si blanc a gagné *)
 let is_game_over (board, _) =
