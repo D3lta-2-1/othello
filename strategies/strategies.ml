@@ -1,26 +1,26 @@
 let base_score =
   [|
-    [| 5; 5; 5; 5; 5; 5; 5; 5 |];
-    [| 5; 4; 4; 4; 4; 4; 4; 5 |];
-    [| 5; 4; 3; 3; 3; 3; 4; 5 |];
-    [| 5; 4; 3; 2; 2; 3; 4; 5 |];
-    [| 5; 4; 3; 2; 2; 3; 4; 5 |];
-    [| 5; 4; 3; 3; 3; 3; 4; 5 |];
-    [| 5; 4; 4; 4; 4; 4; 4; 5 |];
-    [| 5; 5; 5; 5; 5; 5; 5; 5 |];
-  |]
+    5; 5; 5; 5; 5; 5; 5; 5;
+    5; 4; 4; 4; 4; 4; 4; 5;
+    5; 4; 3; 3; 3; 3; 4; 5;
+    5; 4; 3; 2; 2; 3; 4; 5;
+    5; 4; 3; 2; 2; 3; 4; 5;
+    5; 4; 3; 3; 3; 3; 4; 5;
+    5; 4; 4; 4; 4; 4; 4; 5;
+    5; 5; 5; 5; 5; 5; 5; 5;
+  |] [@@ocamlformat "disable"]
 
 let agressive_on_corner =
   [|
-    [| 6; 5; 4; 3; 3; 4; 5; 6 |];
-    [| 5; 4; 3; 2; 2; 3; 4; 5 |];
-    [| 4; 3; 2; 1; 1; 2; 3; 4 |];
-    [| 3; 2; 1; 0; 0; 1; 2; 3 |];
-    [| 3; 2; 1; 0; 0; 1; 2; 3 |];
-    [| 4; 3; 2; 1; 1; 2; 3; 4 |];
-    [| 5; 4; 3; 2; 2; 3; 4; 5 |];
-    [| 6; 5; 4; 3; 3; 4; 5; 6 |];
-  |]
+    6; 5; 4; 3; 3; 4; 5; 6;
+    5; 4; 3; 2; 2; 3; 4; 5;
+    4; 3; 2; 1; 1; 2; 3; 4;
+    3; 2; 1; 0; 0; 1; 2; 3;
+    3; 2; 1; 0; 0; 1; 2; 3;
+    4; 3; 2; 1; 1; 2; 3; 4;
+    5; 4; 3; 2; 2; 3; 4; 5;
+    6; 5; 4; 3; 3; 4; 5; 6;
+  |] [@@ocamlformat "disable"]
 
 type 'a iter_result = Continue | Stop of 'a
 
@@ -48,37 +48,36 @@ let shuffle vec =
     swap vec i j
   done
 
-(*allow us to choose for which player we are trying to maximize*)
-type goal = Max | Min
-
-let score (goal : int -> goal) board =
-  let s = ref 0 in
-
-  let count pos =
-    let piece = Othello.get board pos in
-    if piece <> 0 then
-      match goal piece with Max -> s := !s + 1 | Min -> s := !s - 1
+let score goal board =
+  let count token =
+    match token with Othello.Empty -> 0 | c when c = goal -> 1 | _ -> -1
   in
-  Othello.iterate count;
-  !s
+  Array.fold_left (fun acc token -> acc + count token) 0 board
 
-let corner_heuristic (goal : int -> goal) board =
-  let s = ref 0 in
-  let count pos =
-    let piece = Othello.get board pos in
-    let score = Othello.get agressive_on_corner pos in
-    if piece <> 0 then
-      match goal piece with Max -> s := !s + score | Min -> s := !s - score
+(* there might be a better way to do this *)
+let corner_heuristic goal board =
+  let i = ref 0 in
+  let enum () =
+    let i' = !i in
+    incr i;
+    i'
   in
-  Othello.iterate count;
-  !s
+  let count token =
+    let value = agressive_on_corner.(enum ()) in
+    match token with
+    | Othello.Empty -> 0
+    | c when c = goal -> value
+    | _ -> -value
+  in
+  Array.fold_left (fun acc token -> acc + count token) 0 board
 
 (*If we are black, we want to maximize our score
 If we are white, we want to minimize our score, so we must flip min and max functions,
 it should return a move a the associated score ?
 *)
-let rec min_max_ab state (goal : int -> goal) depth a b heuritistic =
-  if Othello.is_game_over state then score goal (Othello.board state)
+let rec min_max_ab state goal depth (a : int) (b : int)
+    (heuritistic : Othello.token -> Othello.token array -> int) =
+  if Othello.is_game_over state then score goal
     (* we don't want to just win, we want to win with the most pieces *)
   else if depth = 0 then heuritistic goal (Othello.board state)
   else begin
@@ -102,49 +101,34 @@ let rec min_max_ab state (goal : int -> goal) depth a b heuritistic =
     in
 
     let counting_function =
-      match goal (Othello.player_turn state) with
-      | Max -> maximize
-      | Min -> minimize
+      if Othello.player_turn state = goal then maximize else minimize
     in
 
     let moves = Othello.all_possible_moves state in
     let result =
       break_iter
         (fun move ->
-          let v =
+          let v : int =
             min_max_ab (Othello.play state move) goal (depth - 1) !a !b
               heuritistic
           in
           counting_function v)
         moves
     in
-    match result with
-    | Some v -> v
-    | None when Othello.player_turn state = Othello.black -> !a
-    | None when Othello.player_turn state = Othello.white -> !b
-    | None -> assert false (*should be unreachable*)
+    let r =
+      match result with
+      | Some v -> v
+      | None when Othello.player_turn state = goal -> !a (*todo: check this*)
+      | None -> !b
+    in
+    r
   end
-
-let maximize_for_black = function
-  | 1 -> Max
-  | 2 -> Min
-  | _ -> assert false (*black is 1*)
-
-let maximize_for_white = function
-  | 1 -> Min
-  | 2 -> Max
-  | _ -> assert false (*white is 2*)
-
-let use_corresponding_goal = function
-  | 1 -> maximize_for_black
-  | 2 -> maximize_for_white
-  | _ -> assert false
 
 (*first attempt, using score as an heuristic*)
 let generic_minmax_strategy heuristic depth state =
+  let state = Othello.from_ffi state in
   (*assume that we are playing this turn*)
-  let player_turn = Othello.player_turn state in
-  let goal = use_corresponding_goal player_turn in
+  let goal = Othello.player_turn state in
   let moves = Othello.all_possible_moves state in
   shuffle moves;
 
