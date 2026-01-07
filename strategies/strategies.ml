@@ -1,4 +1,4 @@
-let base_score =
+(*let base_score =
   [|
     5; 5; 5; 5; 5; 5; 5; 5;
     5; 4; 4; 4; 4; 4; 4; 5;
@@ -8,7 +8,7 @@ let base_score =
     5; 4; 3; 3; 3; 3; 4; 5;
     5; 4; 4; 4; 4; 4; 4; 5;
     5; 5; 5; 5; 5; 5; 5; 5;
-  |] [@@ocamlformat "disable"]
+  |] [@@ocamlformat "disable"] *)
 
 let agressive_on_corner =
   [|
@@ -75,9 +75,9 @@ let corner_heuristic goal board =
 If we are white, we want to minimize our score, so we must flip min and max functions,
 it should return a move a the associated score ?
 *)
-let rec min_max_ab state goal depth (a : int) (b : int)
+let rec min_max_ab state (goal : Othello.token) depth (a : int) (b : int)
     (heuritistic : Othello.token -> Othello.token array -> int) =
-  if Othello.is_game_over state then score goal
+  if Othello.is_game_over state then score goal (Othello.board state)
     (* we don't want to just win, we want to win with the most pieces *)
   else if depth = 0 then heuritistic goal (Othello.board state)
   else begin

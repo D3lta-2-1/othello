@@ -40,12 +40,12 @@ let init_othellier =
   (array, Black)
 
 let from_ffi (board, player) =
-  let get_token i =
+  let get_token_at i =
     let x = i mod board_size in
     let y = i / board_size in
     get_token board.(x).(y)
   in
-  let array = Array.init (board_size * board_size) get_token in
+  let array = Array.init (board_size * board_size) get_token_at in
   let player = get_token player in
   assert (player <> Empty);
   (array, player)
