@@ -167,4 +167,4 @@ let partie strategie1 strategie2 affichage =
   scorer !etat
 
 (*let () = print_int (partie (Othello.strategie_minmax_ab 6) (Othello.strategie_minmax_ab 3) true)*)
-let () = print_int (partie Strategies.strategy3 Strategies.strategy2 true)
+let () = print_int (partie Strategies.strategy4 Strategies.strategy5 true)

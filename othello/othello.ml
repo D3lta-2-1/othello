@@ -62,25 +62,39 @@ type displacement =
   | Up
   | UpRight
   | Right
-  | BottomRight
-  | Bottom
-  | BottomLeft
+  | DownRight
+  | Down
+  | DownLeft
   | Left
   | UpLeft
 
 let directions =
-  [| Up; UpLeft; Left; BottomLeft; Bottom; BottomRight; Right; UpRight |]
+  [| Up; UpLeft; Left; DownLeft; Down; DownRight; Right; UpRight |]
+
+let rev = function
+  | Up -> Down
+  | UpLeft -> DownRight
+  | Left -> Right
+  | DownLeft -> UpRight
+  | Down -> Up
+  | DownRight -> UpLeft
+  | Right -> Left
+  | UpRight -> DownLeft
 
 let get_case_from (i, j) d =
   match d with
   | Up -> (i - 1, j)
   | UpLeft -> (i - 1, j - 1)
   | Left -> (i, j - 1)
-  | BottomLeft -> (i + 1, j - 1)
-  | Bottom -> (i + 1, j)
-  | BottomRight -> (i + 1, j + 1)
+  | DownLeft -> (i + 1, j - 1)
+  | Down -> (i + 1, j)
+  | DownRight -> (i + 1, j + 1)
   | Right -> (i, j + 1)
   | UpRight -> (i - 1, j + 1)
+
+let try_get_case_from pos d =
+  let case = get_case_from pos d in
+  if is_position_within_borders case then Some case else None
 
 let is_move_possible state pos =
   let board, _ = state in
