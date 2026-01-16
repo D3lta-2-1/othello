@@ -48,6 +48,12 @@ let shuffle vec =
     swap vec i j
   done
 
+let print_int_board =
+  Array.iteri (fun i t ->
+      print_int t;
+      if i mod Othello.board_size = Othello.board_size - 1 then print_newline ()
+      else print_string " ")
+
 let score goal board =
   let count token =
     match token with Othello.Empty -> 0 | c when c = goal -> 1 | _ -> -1
@@ -71,66 +77,60 @@ let corner_heuristic goal board =
   in
   Array.fold_left (fun acc token -> acc + count token) 0 board
 
-(* each token is rated between 1 and 5, 1 for being on the board, and +1 for each axis on which it can't be flipped *)
+type freedom = Free | LockedByOtherToken | LockedByBorder
 
-let degree_of_freedom_removed goal board =
-  let rec travel pos direction right_token_encourted =
-    let token = Othello.get board pos in
-    match (token, Othello.try_get_case_from pos direction) with
-    | Othello.Empty, _ -> (0, false)
-    | t, Some next_pos when t = goal ->
-        travel next_pos direction (right_token_encourted + 1)
-    | _, Some next_pos ->
-        let score, ended = travel next_pos direction 0 in
-        (score + right_token_encourted, ended (* +1 for each right token *))
-    | t, None when t = goal -> (0, true)
-    | _, None -> (right_token_encourted, true)
+let count_locked goal board =
+  (* assume this is already the right color *)
+  let rec is_locked_in pos direction =
+    match Othello.try_get_case_from pos direction with
+    | None -> LockedByBorder
+    | Some next_pos ->
+        let token = Othello.get board next_pos in
+        if token = Othello.Empty then Free
+        else if token = goal then is_locked_in next_pos direction
+        else LockedByBorder
   in
 
-  let score = ref 0 in
-
-  let count_on (start : int -> int * int) direction (restart : int -> int * int)
-      =
-    let rev_direction = Othello.rev direction in
-    for i = 0 to Othello.board_size - 1 do
-      let i_score, ended = travel (start i) direction 0 in
-      score := !score + i_score;
-      if not ended then
-        let i_score, _ = travel (restart i) rev_direction 0 in
-        score := !score + i_score
-    done
+  let is_token_locked pos =
+    if Othello.get board pos <> goal then Free
+    else
+      let paires =
+        [
+          (Othello.Up, Othello.Down);
+          (Othello.Left, Othello.Right);
+          (Othello.UpLeft, Othello.DownRight);
+          (Othello.DownLeft, Othello.UpRight);
+        ]
+      in
+      let rec locked_impl = function
+        | [] -> LockedByBorder
+        | (direction, rev) :: tail -> (
+            match is_locked_in pos direction with
+            | Free -> Free
+            | LockedByBorder -> locked_impl tail
+            | LockedByOtherToken ->
+                let locked = is_locked_in pos rev in
+                if locked = Free then Free
+                else if locked_impl tail = Free then Free
+                else locked)
+      in
+      locked_impl paires
   in
 
-  count_on
-    (fun i -> (i, 0))
-    Othello.Right
-    (fun i -> (i, Othello.board_size - 1));
-  count_on (fun i -> (0, i)) Othello.Down (fun i -> (Othello.board_size - 1, i));
+  let count = ref 0 in
+  for i = 0 to (Othello.board_size * Othello.board_size) - 1 do
+    match
+      is_token_locked (i mod Othello.board_size, i / Othello.board_size)
+    with
+    | Free -> ()
+    | LockedByBorder -> count := !count + 1
+    | LockedByOtherToken -> ()
+  done;
 
-  count_on
-    (fun i -> (i, 0))
-    Othello.DownRight
-    (fun i -> (Othello.board_size - 1, Othello.board_size - 1 - i));
-  count_on
-    (fun i -> (i, 0))
-    Othello.UpRight
-    (fun i -> (0, Othello.board_size - 1 - i));
+  !count
 
-  count_on
-    (fun i -> (i, Othello.board_size - 1))
-    Othello.DownLeft
-    (fun i -> (Othello.board_size - 1, i));
-  count_on
-    (fun i -> (i, Othello.board_size - 1))
-    Othello.UpLeft
-    (fun i -> (0, i));
-
-  !score
-
-let freedom_heuristic goal board =
-  corner_heuristic goal board
-  + degree_of_freedom_removed goal board
-  - degree_of_freedom_removed (Othello.other_player goal) board
+let partial_locked_heuritic goal board =
+  count_locked goal board - count_locked (Othello.other_player goal) board
 
 (*If we are black, we want to maximize our score
 If we are white, we want to minimize our score, so we must flip min and max functions,
@@ -222,5 +222,5 @@ let strategy3 = generic_minmax_strategy corner_heuristic 3
 (* use corner heuristic with 4 as max depth *)
 let strategy4 = generic_minmax_strategy corner_heuristic 4
 
-(* use a new heuritisc this time *)
-let strategy5 = generic_minmax_strategy freedom_heuristic 4
+(* count locked tokens *)
+let strategy5 = generic_minmax_strategy partial_locked_heuritic 4
